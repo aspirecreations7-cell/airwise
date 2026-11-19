@@ -30,3 +30,24 @@ class Assessment(BaseModel):
     personal_tier: str
     sensitive_group: bool
     constraints: dict[str, str]
+
+
+class Location(BaseModel):
+    """A resolved place from the geocoding service."""
+
+    name: str
+    latitude: float
+    longitude: float
+    country: str = ""
+    region: str = ""
+
+
+class AirReading(BaseModel):
+    """A live air quality reading for one location."""
+
+    us_aqi: int
+    pm2_5: float | None = None
+    pm10: float | None = None
+    nitrogen_dioxide: float | None = None
+    ozone: float | None = None
+    observed_at: str = ""
