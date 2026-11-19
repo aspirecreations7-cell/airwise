@@ -1,0 +1,12 @@
+{
+  "status": "approximate planning values, not measured data",
+  "unit": "kg CO2e per passenger-km",
+  "commute_kg_co2e_per_km": {
+    "walk": 0.0,
+    "cycle": 0.0,
+    "work_from_home": 0.0,
+    "public_transport": 0.05,
+    "two_wheeler": 0.04,
+    "car": 0.17
+  }
+}

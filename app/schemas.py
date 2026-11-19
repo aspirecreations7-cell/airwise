@@ -1,11 +1,12 @@
 """Data models shared by the API, the rule engine and the LLM layer."""
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 CommuteMode = Literal[
     "walk", "cycle", "two_wheeler", "car", "public_transport", "work_from_home"
 ]
+Language = Literal["en", "kn", "hi"]
 
 
 class Profile(BaseModel):
@@ -20,6 +21,7 @@ class Profile(BaseModel):
     outdoor_worker: bool = False
     has_purifier: bool = False
     commute_mode: CommuteMode = "public_transport"
+    commute_km: float = Field(default=10, ge=0, le=100)
 
 
 class Assessment(BaseModel):
@@ -51,3 +53,21 @@ class AirReading(BaseModel):
     nitrogen_dioxide: float | None = None
     ozone: float | None = None
     observed_at: str = ""
+
+
+class Action(BaseModel):
+    """One piece of advice with the reason behind it."""
+
+    title: str
+    detail: str
+    why: str
+
+
+class Advice(BaseModel):
+    """The structured answer Gemini must return."""
+
+    summary: str
+    daily_routine: list[Action]
+    indoor_air_hacks: list[Action]
+    sustainable_alternatives: list[Action]
+    impact_explanation: str
