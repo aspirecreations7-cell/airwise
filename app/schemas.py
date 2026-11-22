@@ -53,6 +53,10 @@ class AirReading(BaseModel):
     nitrogen_dioxide: float | None = None
     ozone: float | None = None
     observed_at: str = ""
+    source: str = ""
+    station: str = ""
+    distance_km: float | None = None
+    aqi_method: str = ""
 
 
 class Action(BaseModel):

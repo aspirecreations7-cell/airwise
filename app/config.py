@@ -22,6 +22,7 @@ class Settings:
     gemini_api_key: str
     gemini_model: str
     llm_timeout_seconds: float
+    openaq_api_key: str = ""
 
 
 def get_settings() -> Settings:
@@ -29,6 +30,7 @@ def get_settings() -> Settings:
     load_env_file()
     return Settings(
         gemini_api_key=os.environ.get("GEMINI_API_KEY", ""),
-        gemini_model=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
+        gemini_model=os.environ.get("GEMINI_MODEL", "gemini-3.8-flash"),
         llm_timeout_seconds=float(os.environ.get("LLM_TIMEOUT_SECONDS", "20")),
+        openaq_api_key=os.environ.get("OPENAQ_API_KEY", ""),
     )
