@@ -8,7 +8,6 @@ from google.genai import types
 
 from app.config import Settings
 from app.schemas import (
-    Action,
     Advice,
     AirReading,
     Assessment,
@@ -16,6 +15,7 @@ from app.schemas import (
     Location,
     Profile,
 )
+from app.services.fallback import fallback_advice
 
 logger = logging.getLogger(__name__)
 
@@ -32,71 +32,6 @@ SYSTEM_PROMPT = (
     "doctor if symptoms appear. Write in the requested language using plain, "
     "simple words. Give 2 to 4 actions in each list."
 )
-
-_EXERCISE = {
-    "normal": Action(
-        title="Exercise as usual",
-        detail="Outdoor activity is fine today. Pick parks or quiet streets away from heavy traffic.",
-        why="Air is in a range where normal activity adds little risk.",
-    ),
-    "light_only": Action(
-        title="Keep outdoor exercise light",
-        detail="Choose a gentle, shorter walk instead of running or sport.",
-        why="Harder breathing pulls more polluted air deep into the lungs.",
-    ),
-    "avoid": Action(
-        title="Move exercise indoors today",
-        detail="Do yoga, stretching or a home workout instead of exercising outside.",
-        why="Air is unhealthy for your household today, and avoiding hard outdoor effort cuts exposure the most.",
-    ),
-}
-_MASK = {
-    "optional": Action(
-        title="Keep an N95 mask handy",
-        detail="Wear a well-fitted N95 on busy roads or if the air irritates your throat.",
-        why="N95 masks filter fine particles that ordinary cloth masks let through.",
-    ),
-    "n95_outdoors": Action(
-        title="Wear a fitted N95 outdoors",
-        detail="Use an N95 whenever you go out, and make sure it seals around the nose and chin.",
-        why="Fine particles are high enough to matter even on short trips.",
-    ),
-}
-_VENTILATION = {
-    "open_windows": Action(
-        title="Air out your home",
-        detail="Open windows for a while, preferably when traffic is lightest.",
-        why="Fresh air dilutes indoor pollutants when the outside air is clean.",
-    ),
-    "short_bursts": Action(
-        title="Ventilate in short bursts",
-        detail="Open windows for a few minutes at quiet times, then close them again.",
-        why="Short airing refreshes the room without letting in much polluted air.",
-    ),
-    "keep_closed": Action(
-        title="Keep windows closed",
-        detail="Keep windows and doors shut while outdoor air is poor, and seal obvious gaps.",
-        why="This keeps outdoor particles from flowing into your home.",
-    ),
-}
-_PURIFIER = {
-    "optional": Action(
-        title="Purifier is optional today",
-        detail="If you own one, run it in the room where you spend the most time.",
-        why="Air is fairly clean, so a purifier adds only a small benefit.",
-    ),
-    "recommended": Action(
-        title="Use a purifier in one key room",
-        detail="If you can, run a HEPA purifier in the bedroom or the main living room.",
-        why="A purifier lowers indoor particle levels when outdoor air is poor.",
-    ),
-    "run_continuously": Action(
-        title="Run your purifier continuously",
-        detail="Keep the purifier on in the room where your family spends the most time.",
-        why="It keeps indoor particle levels low while outdoor air is poor.",
-    ),
-}
-
 
 def build_facts(
     location: Location,
@@ -124,67 +59,6 @@ def build_facts(
         "constraints": assessment.constraints,
         "estimated_impact": impact,
     }
-
-
-def fallback_advice(place: str, assessment: Assessment, impact: dict[str, Any]) -> Advice:
-    """Deterministic English advice used when Gemini is unavailable."""
-    rules = assessment.constraints
-    routine = [_EXERCISE[rules["outdoor_exercise"]]]
-    if rules["mask"] in _MASK:
-        routine.append(_MASK[rules["mask"]])
-    if rules["commute"] == "reduce_exposure":
-        routine.append(
-            Action(
-                title="Cut time in traffic",
-                detail="Avoid peak hours and busy roads on your commute, and use quieter lanes.",
-                why="Roadside air is usually the most polluted part of the day.",
-            )
-        )
-    indoor = [
-        _VENTILATION[rules["ventilation"]],
-        _PURIFIER[rules["purifier"]],
-        Action(
-            title="Keep indoor sources low",
-            detail="Skip incense and mosquito coils, never burn waste, and damp-mop instead of sweeping.",
-            why="These add particles to the air you breathe indoors.",
-        ),
-    ]
-    alternatives = [
-        Action(
-            title="Combine and share trips",
-            detail="Group errands into one trip and share rides when you can.",
-            why="Fewer vehicle trips mean less traffic pollution on your street.",
-        ),
-        Action(
-            title="Walk or use public transport for short trips",
-            detail="On days when the air is better, leave the vehicle at home for nearby errands.",
-            why="This cuts both your exposure in traffic and your emissions.",
-        ),
-    ]
-    if impact:
-        explanation = (
-            f"Switching your commute from {impact['commute_switch_from'].replace('_', ' ')} "
-            f"to {impact['commute_switch_to'].replace('_', ' ')} would save about "
-            f"{impact['kg_co2e_saved_per_week']} kg CO2e a week "
-            f"({impact['assumption']}). These are estimates."
-        )
-    else:
-        explanation = (
-            "Fewer vehicle trips, less idling and no open burning all reduce the "
-            "pollution on your street. Exact savings depend on your routine."
-        )
-    summary = (
-        f"Air in {place} is {assessment.category.replace('_', ' ')} "
-        f"(US AQI {assessment.aqi}). For your household it counts as "
-        f"{assessment.personal_tier.replace('_', ' ')}."
-    )
-    return Advice(
-        summary=summary,
-        daily_routine=routine,
-        indoor_air_hacks=indoor,
-        sustainable_alternatives=alternatives,
-        impact_explanation=explanation,
-    )
 
 
 def _is_usable(advice: Advice) -> bool:
@@ -223,14 +97,15 @@ async def get_advice(
 ) -> tuple[Advice, str]:
     """Return (advice, source) where source is 'gemini' or 'fallback'."""
     place = facts["place"]
+    household = facts.get("household") or {}
     if client is None:
-        return fallback_advice(place, assessment, impact), "fallback"
+        return fallback_advice(place, assessment, impact, household), "fallback"
     try:
         advice = await generate_advice(client, settings, facts)
     except Exception:
         logger.warning("Gemini call failed; using rule-based fallback", exc_info=True)
-        return fallback_advice(place, assessment, impact), "fallback"
+        return fallback_advice(place, assessment, impact, household), "fallback"
     if not _is_usable(advice):
         logger.warning("Gemini returned an incomplete answer; using fallback")
-        return fallback_advice(place, assessment, impact), "fallback"
+        return fallback_advice(place, assessment, impact, household), "fallback"
     return advice, "gemini"
