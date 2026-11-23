@@ -14,8 +14,16 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic_core import PydanticCustomError
 
 from app.config import Settings, get_settings
-from app.schemas import Advice, AirReading, Assessment, Language, Location, Profile
-from app.services import air, aqi, engine, impact
+from app.schemas import (
+    Advice,
+    AirReading,
+    Assessment,
+    DayPlan,
+    Language,
+    Location,
+    Profile,
+)
+from app.services import air, aqi, engine, impact, planner
 from app.services.aqi import AirDataError
 from app.services.limits import DailyBudget, RateLimiter
 from app.services.llm import build_facts, get_advice
@@ -65,6 +73,7 @@ class AdviceResponse(BaseModel):
     assessment: Assessment
     advice: Advice
     advice_source: str
+    day_plan: DayPlan | None = None
     disclaimer: str = DISCLAIMER
 
 
@@ -144,7 +153,10 @@ def create_app(
 
         assessment = engine.assess(reading.us_aqi, body.profile)
         saving = impact.commute_saving(body.profile.commute_mode, body.profile.commute_km)
+        day_plan = await planner.get_day_plan(http, location, body.profile)
         facts = build_facts(location, reading, assessment, body.profile, saving, body.language)
+        if day_plan is not None:
+            facts["day_plan"] = [p.model_dump() for p in day_plan.periods]
         facts["data_source"] = {
             "name": reading.source,
             "station": reading.station,
@@ -160,6 +172,7 @@ def create_app(
             assessment=assessment,
             advice=advice,
             advice_source=source,
+            day_plan=day_plan,
         )
 
     if STATIC_DIR.is_dir():

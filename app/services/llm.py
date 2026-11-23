@@ -30,7 +30,8 @@ SYSTEM_PROMPT = (
     "commute. In impact_explanation, explain how the main choices change exposure "
     "or emissions. You are not a doctor: do not diagnose, and suggest seeing a "
     "doctor if symptoms appear. Write in the requested language using plain, "
-    "simple words. Give 2 to 4 actions in each list."
+    "simple words. Give 2 to 4 actions in each list. If FACTS include day_plan, "
+    "mention the cleanest period for any outdoor time."
 )
 
 def build_facts(

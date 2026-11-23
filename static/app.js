@@ -174,6 +174,38 @@ function adviceSection(title, actions) {
   return section;
 }
 
+const OUTDOOR_TEXT = {
+  normal: "Good for outdoor activity",
+  light_only: "Light activity only",
+  avoid: "Better to stay indoors",
+};
+
+function planSections(plan) {
+  if (!plan || !plan.periods || plan.periods.length === 0) return [];
+  const list = el("ul", "advice-list");
+  plan.periods.forEach((period) => {
+    const name = period.period.charAt(0).toUpperCase() + period.period.slice(1);
+    const verdict = OUTDOOR_TEXT[period.outdoor] || period.outdoor;
+    const item = el("li");
+    item.append(
+      el("strong", "", name + " (" + period.label + ")"),
+      el("p", "", verdict + ". Expected AQI about " + period.avg_aqi + "."),
+      el("p", "why", "Cleanest hour: " + period.best_hour + " (AQI about " + period.best_hour_aqi + ").")
+    );
+    if (period.cleanest) {
+      item.append(el("p", "", "Cleanest part of your day. If you must go out, plan it here."));
+    }
+    list.append(item);
+  });
+  const section = el("section");
+  section.append(
+    el("h3", "", "Plan your day"),
+    list,
+    el("p", "note", plan.note + " Source: " + plan.source + ".")
+  );
+  return [section];
+}
+
 function render(data) {
   const { location, reading, assessment, advice } = data;
   const [categoryLabel, categoryClass] = CATEGORY[assessment.category] || [assessment.category, "cat-moderate"];
@@ -221,6 +253,7 @@ function render(data) {
     card,
     factsList(rows),
     el("p", "summary", advice.summary),
+    ...planSections(data.day_plan),
     adviceSection("Your routine today", advice.daily_routine),
     adviceSection("Cleaner air at home", advice.indoor_air_hacks),
     adviceSection("Sustainable alternatives", advice.sustainable_alternatives),

@@ -75,3 +75,25 @@ class Advice(BaseModel):
     indoor_air_hacks: list[Action]
     sustainable_alternatives: list[Action]
     impact_explanation: str
+
+
+class PeriodPlan(BaseModel):
+    """Forecast summary for one part of the day."""
+
+    period: str
+    label: str
+    avg_aqi: int
+    best_hour: str
+    best_hour_aqi: int
+    tier: str
+    outdoor: str
+    cleanest: bool = False
+
+
+class DayPlan(BaseModel):
+    """Today's remaining day split into morning, afternoon and evening."""
+
+    date: str
+    periods: list[PeriodPlan]
+    source: str
+    note: str
