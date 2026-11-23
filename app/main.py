@@ -26,7 +26,7 @@ from app.schemas import (
 from app.services import air, aqi, engine, impact, planner
 from app.services.aqi import AirDataError
 from app.services.limits import DailyBudget, RateLimiter
-from app.services.llm import build_facts, get_advice
+from app.services.llm import build_facts, get_advice_result
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +73,7 @@ class AdviceResponse(BaseModel):
     assessment: Assessment
     advice: Advice
     advice_source: str
+    advice_model: str = ""
     day_plan: DayPlan | None = None
     disclaimer: str = DISCLAIMER
 
@@ -165,13 +166,14 @@ def create_app(
         }
         today = datetime.now(UTC).date().isoformat()
         client = llm_client if llm_client is not None and budget.take(today) else None
-        advice, source = await get_advice(client, settings, facts, assessment, saving)
+        result = await get_advice_result(client, settings, facts, assessment, saving)
         return AdviceResponse(
             location=location,
             reading=reading,
             assessment=assessment,
-            advice=advice,
-            advice_source=source,
+            advice=result.advice,
+            advice_source=result.source,
+            advice_model=result.model,
             day_plan=day_plan,
         )
 

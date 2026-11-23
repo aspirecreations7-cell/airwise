@@ -241,7 +241,7 @@ function render(data) {
     "p",
     "note",
     fromAi
-      ? "Advice written by Gemini AI using the verified data above."
+      ? "Advice written by Google Gemini" + (data.advice_model ? " (" + data.advice_model + ")" : "") + ", checked against AirWise's safety rules, using the verified data above."
       : "Advice produced by AirWise's built-in rules from the verified data above."
   );
   if (!fromAi && form.elements.language.value !== "en") {

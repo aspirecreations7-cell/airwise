@@ -3,6 +3,9 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+DEFAULT_MODEL = "gemini-3.5-flash"
+DEFAULT_FALLBACK_MODELS = "gemini-3.5-flash-lite,gemini-3.1-flash-lite"
+
 
 def load_env_file(path: str = ".env") -> None:
     """Load KEY=VALUE lines into the environment without overriding existing values."""
@@ -17,12 +20,17 @@ def load_env_file(path: str = ".env") -> None:
         os.environ.setdefault(key.strip(), value.strip().strip("'\""))
 
 
+def _split(value: str) -> tuple[str, ...]:
+    return tuple(part.strip() for part in value.split(",") if part.strip())
+
+
 @dataclass(frozen=True)
 class Settings:
     gemini_api_key: str
     gemini_model: str
     llm_timeout_seconds: float
     openaq_api_key: str = ""
+    gemini_fallback_models: tuple[str, ...] = ()
 
 
 def get_settings() -> Settings:
@@ -30,7 +38,10 @@ def get_settings() -> Settings:
     load_env_file()
     return Settings(
         gemini_api_key=os.environ.get("GEMINI_API_KEY", ""),
-        gemini_model=os.environ.get("GEMINI_MODEL", "gemini-3.8-flash"),
+        gemini_model=os.environ.get("GEMINI_MODEL", DEFAULT_MODEL),
         llm_timeout_seconds=float(os.environ.get("LLM_TIMEOUT_SECONDS", "20")),
         openaq_api_key=os.environ.get("OPENAQ_API_KEY", ""),
+        gemini_fallback_models=_split(
+            os.environ.get("GEMINI_FALLBACK_MODELS", DEFAULT_FALLBACK_MODELS)
+        ),
     )

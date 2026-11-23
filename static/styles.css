@@ -138,3 +138,8 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 @media (prefers-reduced-motion: reduce) {
   * { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
 }
+
+#results:focus, #results:focus-visible, main:focus, main:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
