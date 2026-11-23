@@ -124,3 +124,27 @@ async def test_get_advice_keeps_its_two_value_shape():
 def test_model_list_has_no_duplicates_or_blanks():
     config = Settings("k", "a", 1.0, gemini_fallback_models=("a", "b", ""))
     assert llm.models_to_try(config) == ["a", "b"]
+
+
+class SlowFirst(Router):
+    """The first model hangs. The others answer normally."""
+
+    async def generate_content(self, **kwargs):
+        if kwargs["model"] == "m1":
+            await asyncio.sleep(0.5)
+        return await super().generate_content(**kwargs)
+
+
+async def test_a_slow_model_is_abandoned_and_the_next_one_answers():
+    router = SlowFirst({"m1": sample_advice(), "m2": sample_advice()})
+    config = Settings(
+        gemini_api_key="k",
+        gemini_model="m1",
+        llm_timeout_seconds=2.0,
+        gemini_fallback_models=("m2",),
+        llm_model_timeout_seconds=0.05,
+    )
+    result = await run(router, config)
+    assert (result.source, result.model) == ("gemini", "m2")
+    await run(router, config)
+    assert router.calls == ["m2", "m2"]

@@ -129,7 +129,10 @@ async def _first_acceptable(
         if _cooldown.get(model, 0.0) > _now():
             continue
         try:
-            advice = await _call_model(client, model, facts)
+            advice = await asyncio.wait_for(
+                _call_model(client, model, facts),
+                timeout=settings.llm_model_timeout_seconds,
+            )
         except Exception as exc:
             _cooldown[model] = _now() + COOLDOWN_SECONDS
             logger.warning("Model %s failed (%s: %s)", model, type(exc).__name__, str(exc)[:160])

@@ -3,8 +3,10 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-DEFAULT_MODEL = "gemini-3.5-flash"
-DEFAULT_FALLBACK_MODELS = "gemini-3.5-flash-lite,gemini-3.1-flash-lite"
+DEFAULT_MODEL = "gemini-3.1-flash-lite"
+DEFAULT_FALLBACK_MODELS = "gemini-3.5-flash-lite,gemini-3.5-flash"
+DEFAULT_TOTAL_TIMEOUT = "30"
+DEFAULT_MODEL_TIMEOUT = "12"
 
 
 def load_env_file(path: str = ".env") -> None:
@@ -31,6 +33,7 @@ class Settings:
     llm_timeout_seconds: float
     openaq_api_key: str = ""
     gemini_fallback_models: tuple[str, ...] = ()
+    llm_model_timeout_seconds: float = 12.0
 
 
 def get_settings() -> Settings:
@@ -39,9 +42,12 @@ def get_settings() -> Settings:
     return Settings(
         gemini_api_key=os.environ.get("GEMINI_API_KEY", ""),
         gemini_model=os.environ.get("GEMINI_MODEL", DEFAULT_MODEL),
-        llm_timeout_seconds=float(os.environ.get("LLM_TIMEOUT_SECONDS", "20")),
+        llm_timeout_seconds=float(os.environ.get("LLM_TIMEOUT_SECONDS", DEFAULT_TOTAL_TIMEOUT)),
         openaq_api_key=os.environ.get("OPENAQ_API_KEY", ""),
         gemini_fallback_models=_split(
             os.environ.get("GEMINI_FALLBACK_MODELS", DEFAULT_FALLBACK_MODELS)
+        ),
+        llm_model_timeout_seconds=float(
+            os.environ.get("LLM_MODEL_TIMEOUT_SECONDS", DEFAULT_MODEL_TIMEOUT)
         ),
     )
