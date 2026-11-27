@@ -1,5 +1,6 @@
 """FastAPI application: one endpoint that turns a place and a household into advice."""
 import logging
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
@@ -34,13 +35,24 @@ DISCLAIMER = (
     "General guidance, not medical advice. If anyone has symptoms such as trouble "
     "breathing or chest pain, contact a doctor."
 )
-SECURITY_HEADERS = {
-    "X-Content-Type-Options": "nosniff",
-    "X-Frame-Options": "DENY",
-    "Referrer-Policy": "no-referrer",
-    "Permissions-Policy": "geolocation=(self)",
-    "Content-Security-Policy": "default-src 'self'; img-src 'self' data:; frame-ancestors 'none'",
-}
+
+
+def security_headers(frame_ancestors: str) -> dict[str, str]:
+    """Response headers. Framing is blocked unless a host is explicitly allowed."""
+    headers = {
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "no-referrer",
+        "Permissions-Policy": "geolocation=(self)",
+        "Content-Security-Policy": (
+            "default-src 'self'; img-src 'self' data:; "
+            f"frame-ancestors {frame_ancestors}"
+        ),
+    }
+    if frame_ancestors == "'none'":
+        headers["X-Frame-Options"] = "DENY"
+    return headers
+
+
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 _UNSET: Any = object()
 
@@ -106,6 +118,7 @@ def create_app(
 ) -> FastAPI:
     """Build the application. Dependencies are injectable so tests never hit the network."""
     settings = settings or get_settings()
+    headers = security_headers(os.environ.get("FRAME_ANCESTORS", "'none'"))
     if llm_client is _UNSET:
         llm_client = genai.Client(api_key=settings.gemini_api_key) if settings.gemini_api_key else None
     limiter = RateLimiter(rate_limit, 60.0)
@@ -129,7 +142,7 @@ def create_app(
     @app.middleware("http")
     async def add_security_headers(request: Request, call_next):
         response = await call_next(request)
-        for name, value in SECURITY_HEADERS.items():
+        for name, value in headers.items():
             response.headers.setdefault(name, value)
         return response
 
